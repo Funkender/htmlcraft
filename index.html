@@ -234,17 +234,71 @@ function setupControls() {
     // --- Create Torch ---
     function createTorch() { torchMesh = new THREE.Group(); torchMesh.name = "TorchViewModel"; let handleMaterial = loadedMaterials[BLOCK_TYPE.WOOD]; if (!handleMaterial || !Array.isArray(handleMaterial)) { console.warn("Wood material for torch handle not found! Using fallback."); handleMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); } else { handleMaterial = handleMaterial[0]; } const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xFFA500, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }); const handleHeight = 0.5; const handleRadius = 0.04; const flameRadius = 0.05; const handleGeo = new THREE.CylinderGeometry(handleRadius, handleRadius * 0.8, handleHeight, 8); const handleMesh = new THREE.Mesh(handleGeo, handleMaterial); handleMesh.position.y = -handleHeight * 0.4; torchMesh.add(handleMesh); const flameGeo = new THREE.SphereGeometry(flameRadius, 8, 6); flameMesh = new THREE.Mesh(flameGeo, flameMaterial); const flameBaseY = handleMesh.position.y + handleHeight / 2 + flameRadius * 0.1; flameMesh.position.y = flameBaseY + flameRadius * 0.5; torchMesh.add(flameMesh); torchLight = new THREE.PointLight(0xffaa33, torchBaseLightIntensity, 7, 2); torchLight.position.copy(flameMesh.position); torchLight.castShadow = false; torchMesh.add(torchLight); particleGeometry = new THREE.BufferGeometry(); particlePositions = new Float32Array(particleCount * 3); particleVelocities = []; particleLifetimes = new Float32Array(particleCount); const flameOrigin = new THREE.Vector3(0, flameBaseY, 0); for (let i = 0; i < particleCount; i++) { const i3 = i * 3; particlePositions[i3] = flameOrigin.x + (Math.random() - 0.5) * particleSpawnRadius * 2; particlePositions[i3 + 1] = flameOrigin.y + Math.random() * 0.05; particlePositions[i3 + 2] = flameOrigin.z + (Math.random() - 0.5) * particleSpawnRadius * 2; const vel = new THREE.Vector3( (Math.random() - 0.5) * particleVelocityVariance * 0.5, particleBaseVelocityY + Math.random() * particleVelocityVariance, (Math.random() - 0.5) * particleVelocityVariance * 0.5 ); particleVelocities.push(vel); particleLifetimes[i] = particleBaseLifetime + (Math.random() - 0.5) * particleLifetimeVariance * 2; } particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3)); particleMaterial = new THREE.PointsMaterial({ color: 0xffcc66, size: 0.015, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, sizeAttenuation: true }); particleSystem = new THREE.Points(particleGeometry, particleMaterial); particleSystem.name = "TorchParticles"; torchMesh.add(particleSystem); torchMesh.position.set(0.30, -0.25, -0.45); torchMesh.rotation.set(0, -Math.PI / 16, Math.PI / 14); camera.add(torchMesh); }
 
-    // --- World & Chunk Management ---
-    function getChunkCoords(worldX, worldZ) { return { x: Math.floor(worldX / CHUNK_SIZE_X), z: Math.floor(worldZ / CHUNK_SIZE_Z) }; }
-    function getChunkKey(chunkX, chunkZ) { return `${chunkX},${chunkZ}`; }
-    function getBlockWorld(worldX, worldY, worldZ) { const { x: chunkX, z: chunkZ } = getChunkCoords(worldX, worldZ); const key = getChunkKey(chunkX, chunkZ); const chunkData = worldChunks.get(key); if (!chunkData || worldY < 0 || worldY >= CHUNK_SIZE_Y) return BLOCK_TYPE.AIR; const localX = THREE.MathUtils.euclideanModulo(Math.floor(worldX), CHUNK_SIZE_X); const localZ = THREE.MathUtils.euclideanModulo(Math.floor(worldZ), CHUNK_SIZE_Z); const localY = Math.floor(worldY); return chunkData[localX]?.[localZ]?.[localY] ?? BLOCK_TYPE.AIR; }
-    function setBlockWorld(worldX, worldY, worldZ, blockType) { const { x: chunkX, z: chunkZ } = getChunkCoords(worldX, worldZ); const key = getChunkKey(chunkX, chunkZ); let chunkData = worldChunks.get(key); if (!chunkData || worldY < 0 || worldY >= CHUNK_SIZE_Y) return; const localX = THREE.MathUtils.euclideanModulo(Math.floor(worldX), CHUNK_SIZE_X); const localZ = THREE.MathUtils.euclideanModulo(Math.floor(worldZ), CHUNK_SIZE_Z); const localY = Math.floor(worldY); if (!chunkData[localX]) chunkData[localX] = []; if (!chunkData[localX][localZ]) chunkData[localX][localZ] = new Uint8Array(CHUNK_SIZE_Y).fill(BLOCK_TYPE.AIR); if (chunkData[localX][localZ][localY] !== blockType) { chunkData[localX][localZ][localY] = blockType; disposeChunkMesh(chunkX, chunkZ); createChunkMesh(chunkX, chunkZ); const neighborsToUpdate = []; if(localX === 0) neighborsToUpdate.push({x: chunkX - 1, z: chunkZ}); else if(localX === CHUNK_SIZE_X - 1) neighborsToUpdate.push({x: chunkX + 1, z: chunkZ}); if(localZ === 0) neighborsToUpdate.push({x: chunkX, z: chunkZ - 1}); else if(localZ === CHUNK_SIZE_Z - 1) neighborsToUpdate.push({x: chunkX, z: chunkZ + 1}); neighborsToUpdate.forEach(n => { const neighborKey = getChunkKey(n.x, n.z); if (chunkMeshes.has(neighborKey)) { disposeChunkMesh(n.x, n.z); createChunkMesh(n.x, n.z); } }); } }
-    function generateChunkData(chunkX, chunkZ) { const chunkData = Array(CHUNK_SIZE_X).fill(0).map(() => Array(CHUNK_SIZE_Z).fill(0).map(() => new Uint8Array(CHUNK_SIZE_Y).fill(BLOCK_TYPE.AIR))); const baseHeight = Math.floor(WORLD_HEIGHT * 0.3); for (let lx = 0; lx < CHUNK_SIZE_X; lx++) { for (let lz = 0; lz < CHUNK_SIZE_Z; lz++) { const worldX = chunkX * CHUNK_SIZE_X + lx; const worldZ = chunkZ * CHUNK_SIZE_Z + lz; const noiseVal = octaveNoise(worldX, worldZ, 5, 0.5, 2.0, 0.012); const terrainHeight = baseHeight + Math.floor(noiseVal * WORLD_HEIGHT * 0.25); const stoneHeight = terrainHeight - (3 + Math.floor(Math.random() * 3)); for (let ly = 0; ly < CHUNK_SIZE_Y; ly++) { if (ly < stoneHeight) chunkData[lx][lz][ly] = BLOCK_TYPE.STONE; else if (ly < terrainHeight - 1) chunkData[lx][lz][ly] = BLOCK_TYPE.DIRT; else if (ly < terrainHeight) chunkData[lx][lz][ly] = BLOCK_TYPE.GRASS; } if (chunkData[lx][lz][terrainHeight - 1] === BLOCK_TYPE.GRASS && Math.random() < 0.015) { const treeHeight = Math.floor(Math.random() * 4) + 4; for(let h=0; h<treeHeight; h++) { if(terrainHeight + h < CHUNK_SIZE_Y) chunkData[lx][lz][terrainHeight + h] = BLOCK_TYPE.WOOD; } const leafRadius = 2.5; const leafRadiusInt = Math.ceil(leafRadius); const leafCenterY = terrainHeight + treeHeight - 1; for (let dy = -leafRadiusInt; dy <= leafRadiusInt; dy++) { for (let dx = -leafRadiusInt; dx <= leafRadiusInt; dx++) { for (let dz = -leafRadiusInt; dz <= leafRadiusInt; dz++) { const distSq = dx*dx + dy*dy + dz*dz; if (distSq > leafRadius * leafRadius) continue; const targetX = lx + dx; const targetY = leafCenterY + dy; const targetZ = lz + dz; if (targetX >= 0 && targetX < CHUNK_SIZE_X && targetY >= 0 && targetY < CHUNK_SIZE_Y && targetZ >= 0 && targetZ < CHUNK_SIZE_Z) { const finalTargetY = Math.floor(targetY); if (chunkData[targetX]?.[targetZ]?.[finalTargetY] === BLOCK_TYPE.AIR) { chunkData[targetX][targetZ][finalTargetY] = BLOCK_TYPE.LEAVES; } } } } } } } } return chunkData; }
-    const sharedBoxGeometry = new THREE.BoxGeometry(1, 1, 1);
-    function createChunkMesh(chunkX, chunkZ) { const key = getChunkKey(chunkX, chunkZ); let chunkData = worldChunks.get(key); if (!chunkData) { chunkData = generateChunkData(chunkX, chunkZ); worldChunks.set(key, chunkData); } disposeChunkMesh(chunkX, chunkZ); const chunkOriginX = chunkX * CHUNK_SIZE_X; const chunkOriginZ = chunkZ * CHUNK_SIZE_Z; const matrix = new THREE.Matrix4(); const instances = {}; for (let lx = 0; lx < CHUNK_SIZE_X; lx++) { for (let lz = 0; lz < CHUNK_SIZE_Z; lz++) { for (let ly = 0; ly < CHUNK_SIZE_Y; ly++) { const blockType = chunkData[lx][lz][ly]; if (blockType === BLOCK_TYPE.AIR) continue; const worldX = chunkOriginX + lx; const worldY = ly; const worldZ = chunkOriginZ + lz; const isExposed = isTransparentOrAir(getBlockWorld(worldX + 1, worldY, worldZ)) || isTransparentOrAir(getBlockWorld(worldX - 1, worldY, worldZ)) || isTransparentOrAir(getBlockWorld(worldX, worldY + 1, worldZ)) || isTransparentOrAir(getBlockWorld(worldX, worldY - 1, worldZ)) || isTransparentOrAir(getBlockWorld(worldX, worldY, worldZ + 1)) || isTransparentOrAir(getBlockWorld(worldX, worldY, worldZ - 1)); if (isExposed) { if (!instances[blockType]) instances[blockType] = []; matrix.setPosition(worldX + 0.5, worldY + 0.5, worldZ + 0.5); instances[blockType].push(matrix.clone()); } } } } const chunkMeshGroup = {}; for (const typeStr in instances) { const type = parseInt(typeStr); const instanceMatrices = instances[type]; const count = instanceMatrices.length; if (count === 0) continue; const material = loadedMaterials[type]; if (!material) continue; const mesh = new THREE.InstancedMesh(sharedBoxGeometry, material, count); mesh.name = `chunk_${key}_type_${type}`; mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.chunkKey = key; for (let i = 0; i < count; i++) mesh.setMatrixAt(i, instanceMatrices[i]); mesh.instanceMatrix.needsUpdate = true; scene.add(mesh); chunkMeshGroup[type] = mesh; } if (Object.keys(chunkMeshGroup).length > 0) chunkMeshes.set(key, chunkMeshGroup); else chunkMeshes.delete(key); }
-    function disposeChunkMesh(chunkX, chunkZ) { const key = getChunkKey(chunkX, chunkZ); const meshGroup = chunkMeshes.get(key); if (meshGroup) { for (const type in meshGroup) { scene.remove(meshGroup[type]); } chunkMeshes.delete(key); } }
-    function isTransparentOrAir(blockType) { return blockType === BLOCK_TYPE.AIR || blockType === BLOCK_TYPE.LEAVES; }
-    function updateVisibleChunks(forceLoad = false) { const camPos = controls.getObject().position; const { x: currentChunkX, z: currentChunkZ } = getChunkCoords(camPos.x, camPos.z); if (!forceLoad && currentChunkX === player.currentChunk.x && currentChunkZ === player.currentChunk.z) return; const chunkChanged = player.currentChunk.x !== currentChunkX || player.currentChunk.z !== currentChunkZ; player.currentChunk = { x: currentChunkX, z: currentChunkZ }; if(chunkChanged) updateLightTarget(); const chunksToKeep = new Set(); const chunksToLoad = []; for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) { for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) { if (dx*dx + dz*dz > RENDER_DISTANCE * RENDER_DISTANCE) continue; const chunkX = currentChunkX + dx; const chunkZ = currentChunkZ + dz; const key = getChunkKey(chunkX, chunkZ); chunksToKeep.add(key); if (!chunkMeshes.has(key)) chunksToLoad.push({ x: chunkX, z: chunkZ }); } } for (const key of chunkMeshes.keys()) { if (!chunksToKeep.has(key)) { const [cxStr, czStr] = key.split(','); disposeChunkMesh(parseInt(cxStr), parseInt(czStr)); worldChunks.delete(key); } } chunksToLoad.forEach(coords => { if (!chunkMeshes.has(getChunkKey(coords.x, coords.z))) createChunkMesh(coords.x, coords.z); }); }
+   // =============================
+// World Chunk Management (fixed)
+// =============================
+
+// Größe der Chunks
+const CHUNK_SIZE = 16;
+const VISIBLE_DISTANCE = 3; // Anzahl Chunks um den Spieler herum
+
+// Alle geladenen Chunks speichern
+const loadedChunks = new Map();
+
+function chunkKey(x, z) {
+  return `${x},${z}`;
+}
+
+// Chunk generieren
+function generateChunk(x, z) {
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0x808080 });
+  const chunk = new THREE.Group();
+
+  for (let i = 0; i < CHUNK_SIZE; i++) {
+    for (let j = 0; j < CHUNK_SIZE; j++) {
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x * CHUNK_SIZE + i, 0, z * CHUNK_SIZE + j);
+      chunk.add(block);
+    }
+  }
+
+  scene.add(chunk);
+  loadedChunks.set(chunkKey(x, z), chunk);
+}
+
+// Sichtbare Chunks aktualisieren
+function updateVisibleChunks() {
+  // Spielerposition direkt aus Kamera
+  const playerX = Math.floor(camera.position.x / CHUNK_SIZE);
+  const playerZ = Math.floor(camera.position.z / CHUNK_SIZE);
+
+  // Neue Chunks laden
+  for (let dx = -VISIBLE_DISTANCE; dx <= VISIBLE_DISTANCE; dx++) {
+    for (let dz = -VISIBLE_DISTANCE; dz <= VISIBLE_DISTANCE; dz++) {
+      const chunkX = playerX + dx;
+      const chunkZ = playerZ + dz;
+      const key = chunkKey(chunkX, chunkZ);
+
+      if (!loadedChunks.has(key)) {
+        generateChunk(chunkX, chunkZ);
+      }
+    }
+  }
+
+  // Entferne Chunks, die zu weit weg sind
+  for (const [key, chunk] of loadedChunks) {
+    const [chunkX, chunkZ] = key.split(",").map(Number);
+    if (
+      Math.abs(chunkX - playerX) > VISIBLE_DISTANCE ||
+      Math.abs(chunkZ - playerZ) > VISIBLE_DISTANCE
+    ) {
+      scene.remove(chunk);
+      loadedChunks.delete(key);
+    }
+  }
+}
+
 
     // --- Collision & Interaction ---
     function checkCollision(position, checkGround = false) { const groundCheckOffset = checkGround ? 0.1 : 0; const playerBox = new THREE.Box3( new THREE.Vector3(position.x - player.radius, position.y - player.height - groundCheckOffset, position.z - player.radius), new THREE.Vector3(position.x + player.radius, position.y, position.z + player.radius) ); const minX = Math.floor(playerBox.min.x); const maxX = Math.ceil(playerBox.max.x); const minY = Math.floor(playerBox.min.y); const maxY = Math.ceil(playerBox.max.y); const minZ = Math.floor(playerBox.min.z); const maxZ = Math.ceil(playerBox.max.z); for (let worldX = minX; worldX < maxX; worldX++) { for (let worldY = minY; worldY < maxY; worldY++) { for (let worldZ = minZ; worldZ < maxZ; worldZ++) { const blockType = getBlockWorld(worldX, worldY, worldZ); if (isSolid(blockType)) { const blockBox = new THREE.Box3( new THREE.Vector3(worldX, worldY, worldZ), new THREE.Vector3(worldX + 1, worldY + 1, worldZ + 1) ); if (playerBox.intersectsBox(blockBox)) return true; } } } } return false; }
