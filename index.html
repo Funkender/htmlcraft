@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Voxel World Touch Edition</title>
   <style>
     body { margin:0; overflow:hidden; background:#000; }
@@ -11,13 +12,11 @@
     #crosshair {
       position:absolute; top:50%; left:50%;
       width:6px; height:6px; background:#fff;
-      border-radius:50%; transform:translate(-50%,-50%);
-      z-index:10;
+      border-radius:50%; transform:translate(-50%,-50%); z-index:10;
     }
     #info, #blockInfo {
       position:absolute; color:white; font-family:monospace;
-      background:rgba(0,0,0,0.5); padding:5px; border-radius:3px;
-      z-index:10;
+      background:rgba(0,0,0,0.5); padding:5px; border-radius:3px; z-index:10;
     }
     #info { top:10px; left:10px; font-size:12px; }
     #blockInfo { bottom:10px; left:10px; font-size:14px; }
@@ -25,7 +24,7 @@
     .btn {
       position:absolute; bottom:20px; background:#333; color:white;
       padding:10px; border-radius:5px; font-size:14px;
-      border:2px solid #555; z-index:20;
+      border:2px solid #555; z-index:20; user-select:none;
     }
     #btnBreak { left:20px; }
     #btnPlace { left:100px; }
@@ -35,12 +34,11 @@
     .joystick {
       position:absolute; width:120px; height:120px;
       border-radius:50%; background:rgba(255,255,255,0.1);
-      z-index:20;
+      z-index:20; touch-action:none; /* wichtig für iOS */
     }
     .stick {
-      position:absolute; width:60px; height:60px;
-      border-radius:50%; background:rgba(255,255,255,0.3);
-      top:30px; left:30px;
+      position:absolute; width:60px; height:60px; border-radius:50%;
+      background:rgba(255,255,255,0.3); top:30px; left:30px;
     }
     #joyMove { left:20px; bottom:160px; }
     #joyLook { right:20px; bottom:160px; }
@@ -62,11 +60,7 @@
   <div id="joyLook" class="joystick"><div class="stick"></div></div>
 
   <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.162.0/build/three.module.js"
-      }
-    }
+    { "imports": { "three": "https://unpkg.com/three@0.162.0/build/three.module.js" } }
   </script>
 
   <script type="module">
@@ -77,53 +71,63 @@
     const VISIBLE_DISTANCE = 3;
     const loadedChunks = new Map();
 
-    // Materialien
-    const matGreen = new THREE.MeshBasicMaterial({color:0x006400});
-    const matBrown = new THREE.MeshBasicMaterial({color:0x8B4513});
+    // Materialien (beleuchtet)
+    const matGreen = new THREE.MeshLambertMaterial({ color: 0x006400 });
+    const matBrown = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
     let currentMaterial = matGreen;
 
     // --- Weltgenerierung ---
-    function chunkKey(x,z){ return `${x},${z}`; }
+    function chunkKey(x, z) { return `${x},${z}`; }
 
-    function generateChunk(scene,x,z){
-      const geo=new THREE.BoxGeometry(1,1,1);
-      const chunk=new THREE.Group();
-      for(let i=0;i<CHUNK_SIZE;i++){
-        for(let j=0;j<CHUNK_SIZE;j++){
-          const mat = (Math.random()<0.75)? matGreen : matBrown;
-          const block=new THREE.Mesh(geo,mat);
-          block.position.set(x*CHUNK_SIZE+i,0,z*CHUNK_SIZE+j);
+    function generateChunk(scene, x, z) {
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const chunk = new THREE.Group();
+      for (let i = 0; i < CHUNK_SIZE; i++) {
+        for (let j = 0; j < CHUNK_SIZE; j++) {
+          const mat = (Math.random() < 0.75) ? matGreen : matBrown;
+          const block = new THREE.Mesh(geo, mat);
+          block.position.set(x * CHUNK_SIZE + i, 0, z * CHUNK_SIZE + j);
           chunk.add(block);
         }
       }
       scene.add(chunk);
-      loadedChunks.set(chunkKey(x,z),chunk);
+      loadedChunks.set(chunkKey(x, z), chunk);
     }
 
-    function updateVisibleChunks(scene,player){
-      const px=Math.floor(player.position.x/CHUNK_SIZE);
-      const pz=Math.floor(player.position.z/CHUNK_SIZE);
-      for(let dx=-VISIBLE_DISTANCE;dx<=VISIBLE_DISTANCE;dx++){
-        for(let dz=-VISIBLE_DISTANCE;dz<=VISIBLE_DISTANCE;dz++){
-          const cx=px+dx, cz=pz+dz, key=chunkKey(cx,cz);
-          if(!loadedChunks.has(key)) generateChunk(scene,cx,cz);
+    function updateVisibleChunks(scene, player) {
+      const px = Math.floor(player.position.x / CHUNK_SIZE);
+      const pz = Math.floor(player.position.z / CHUNK_SIZE);
+
+      // Nachladen
+      for (let dx = -VISIBLE_DISTANCE; dx <= VISIBLE_DISTANCE; dx++) {
+        for (let dz = -VISIBLE_DISTANCE; dz <= VISIBLE_DISTANCE; dz++) {
+          const cx = px + dx, cz = pz + dz, key = chunkKey(cx, cz);
+          if (!loadedChunks.has(key)) generateChunk(scene, cx, cz);
         }
       }
-      for(const [key,chunk] of loadedChunks){
-        const [cx,cz]=key.split(",").map(Number);
-        if(Math.abs(cx-px)>VISIBLE_DISTANCE||Math.abs(cz-pz)>VISIBLE_DISTANCE){
-          scene.remove(chunk); loadedChunks.delete(key);
+      // Entfernen
+      for (const [key, chunk] of loadedChunks) {
+        const [cx, cz] = key.split(",").map(Number);
+        if (Math.abs(cx - px) > VISIBLE_DISTANCE || Math.abs(cz - pz) > VISIBLE_DISTANCE) {
+          scene.remove(chunk);
+          loadedChunks.delete(key);
         }
       }
     }
 
     // --- Init ---
-    function init(){
-      const scene=new THREE.Scene();
-      const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
-      const renderer=new THREE.WebGLRenderer({antialias:true});
-      renderer.setSize(window.innerWidth,window.innerHeight);
+    function init() {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
+
+      // Licht
+      const light = new THREE.DirectionalLight(0xffffff, 1);
+      light.position.set(10, 20, 10);
+      scene.add(light);
+      scene.add(new THREE.AmbientLight(0x222222));
 
       // Pitch/Yaw Rig
       const yawObject = new THREE.Object3D();
@@ -131,76 +135,140 @@
       yawObject.add(pitchObject);
       pitchObject.add(camera);
       scene.add(yawObject);
-      yawObject.position.set(0,5,0);
+      yawObject.position.set(0, 5, 0);
 
-      // Buttons Events
-      document.getElementById('btnBreak').addEventListener('click',()=>console.log("Break block"));
-      document.getElementById('btnPlace').addEventListener('click',()=>console.log("Place block"));
+      // HUD Info
+      const infoEl = document.getElementById('info');
+      function updateHUD() {
+        infoEl.textContent = `Pos: (${yawObject.position.x.toFixed(1)}, ${yawObject.position.y.toFixed(1)}, ${yawObject.position.z.toFixed(1)})`;
+      }
 
-      document.getElementById('btn1').addEventListener('click',()=>{
-        currentMaterial = matBrown;
-        document.getElementById('blockInfo').innerText="Placing: BROWN";
+      // Buttons (ohne Raycast)
+      document.getElementById('btnBreak').addEventListener('click', () => {
+        // Entfernt Block auf exakt der Integer-Position des Spielers (auf y=0 Ebene bevorzugt)
+        const pos = yawObject.position.clone().floor();
+        // Falls Spieler über Boden schwebt, nur Bodenebene prüfen
+        pos.y = 0;
+        // passenden Mesh finden und entfernen
+        let toRemove = null;
+        scene.traverse(obj => {
+          if (toRemove) return;
+          if (obj.isMesh && obj.position.x === pos.x && obj.position.y === pos.y && obj.position.z === pos.z) {
+            toRemove = obj;
+          }
+        });
+        if (toRemove) {
+          toRemove.parent?.remove(toRemove);
+        }
       });
-      document.getElementById('btn2').addEventListener('click',()=>{
+
+      document.getElementById('btnPlace').addEventListener('click', () => {
+        // Setzt Block eine Einheit vor dem Spieler, gerastert auf ganze Koordinaten
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+        const pos = yawObject.position.clone().add(forward).round();
+        pos.y = 0; // auf Bodenebene platzieren
+        const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), currentMaterial);
+        block.position.copy(pos);
+        scene.add(block);
+      });
+
+      document.getElementById('btn1').addEventListener('click', () => {
+        currentMaterial = matBrown;
+        document.getElementById('blockInfo').innerText = "Placing: BROWN";
+      });
+      document.getElementById('btn2').addEventListener('click', () => {
         currentMaterial = matGreen;
-        document.getElementById('blockInfo').innerText="Placing: GREEN";
+        document.getElementById('blockInfo').innerText = "Placing: GREEN";
       });
 
       // --- Joystick Werte speichern ---
-      let moveDX=0, moveDY=0;
-      let lookDX=0, lookDY=0;
+      let moveDX = 0, moveDY = 0;
+      let lookDX = 0, lookDY = 0;
 
-      function setupJoystick(id){
-        const joy=document.getElementById(id);
-        const stick=joy.querySelector('.stick');
-        let active=false;
-        joy.addEventListener('touchstart',()=>{active=true;});
-        joy.addEventListener('touchend',()=>{
-          active=false;
-          stick.style.top="30px"; stick.style.left="30px";
-          if(id==="joyMove"){ moveDX=0; moveDY=0; }
-          if(id==="joyLook"){ lookDX=0; lookDY=0; }
+      function setupJoystick(id) {
+        const joy = document.getElementById(id);
+        const stick = joy.querySelector('.stick');
+        let activeTouchId = null;
+
+        // iOS: Default Scrolling/Zoom verhindern
+        ['touchstart', 'touchmove'].forEach(evt => {
+          joy.addEventListener(evt, e => e.preventDefault(), { passive: false });
         });
-        joy.addEventListener('touchmove',e=>{
-          if(!active) return;
-          const rect=joy.getBoundingClientRect();
-          const touch=e.touches[0];
-          const dx=touch.clientX-(rect.left+rect.width/2);
-          const dy=touch.clientY-(rect.top+rect.height/2);
-          stick.style.left=(30+dx*0.3)+"px";
-          stick.style.top=(30+dy*0.3)+"px";
-          if(id==="joyMove"){ moveDX=dx/rect.width; moveDY=dy/rect.height; }
-          if(id==="joyLook"){ lookDX=dx/rect.width; lookDY=dy/rect.height; }
+
+        joy.addEventListener('touchstart', e => {
+          const touch = e.changedTouches[0];
+          activeTouchId = touch.identifier;
+        });
+
+        joy.addEventListener('touchend', e => {
+          for (const touch of e.changedTouches) {
+            if (touch.identifier === activeTouchId) {
+              activeTouchId = null;
+              stick.style.top = "30px";
+              stick.style.left = "30px";
+              if (id === "joyMove") { moveDX = 0; moveDY = 0; }
+              if (id === "joyLook") { lookDX = 0; lookDY = 0; }
+            }
+          }
+        });
+
+        joy.addEventListener('touchmove', e => {
+          for (const touch of e.touches) {
+            if (touch.identifier === activeTouchId) {
+              const rect = joy.getBoundingClientRect();
+              const dx = touch.clientX - (rect.left + rect.width / 2);
+              const dy = touch.clientY - (rect.top + rect.height / 2);
+              // visueller Offset
+              stick.style.left = (30 + dx * 0.3) + "px";
+              stick.style.top  = (30 + dy * 0.3) + "px";
+              // normierte Werte
+              if (id === "joyMove") { moveDX = dx / rect.width; moveDY = dy / rect.height; }
+              if (id === "joyLook") { lookDX = dx / rect.width; lookDY = dy / rect.height; }
+            }
+          }
         });
       }
 
       setupJoystick('joyMove');
       setupJoystick('joyLook');
 
-      function animate(){
+      // Resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Hauptloop
+      function animate() {
         requestAnimationFrame(animate);
 
-        // Bewegung anwenden (Vorwärts/Rückwärts korrigiert)
-        const forward = new THREE.Vector3(0,0,-1).applyQuaternion(yawObject.quaternion);
-        const right = new THREE.Vector3(1,0,0).applyQuaternion(yawObject.quaternion);
-        yawObject.position.addScaledVector(forward, -moveDY*0.5); // Vorzeichen geändert
-        yawObject.position.addScaledVector(right, moveDX*0.5);
-        if(yawObject.position.y<1) yawObject.position.y=1;
+        // Bewegung (Vorwärts/Rückwärts + Strafe), an Yaw orientiert
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
+        yawObject.position.addScaledVector(forward, -moveDY * 0.5);
+        yawObject.position.addScaledVector(right, moveDX * 0.5);
+        if (yawObject.position.y < 1) yawObject.position.y = 1;
 
-        // Kamera-Look anwenden
-        yawObject.rotation.y -= lookDX*0.05;
-        pitchObject.rotation.x -= lookDY*0.05;
-        const maxPitch=Math.PI/2;
-        if(pitchObject.rotation.x>maxPitch) pitchObject.rotation.x=maxPitch;
-        if(pitchObject.rotation.x<-maxPitch) pitchObject.rotation.x=-maxPitch;
+        // Look
+        yawObject.rotation.y -= lookDX * 0.05;
+        pitchObject.rotation.x -= lookDY * 0.05;
+        const maxPitch = Math.PI / 2;
+        if (pitchObject.rotation.x > maxPitch) pitchObject.rotation.x = maxPitch;
+        if (pitchObject.rotation.x < -maxPitch) pitchObject.rotation.x = -maxPitch;
 
-        updateVisibleChunks(scene,yawObject);
-        renderer.render(scene,camera);
+        // Chunks
+        updateVisibleChunks(scene, yawObject);
+
+        // HUD
+        updateHUD();
+
+        renderer.render(scene, camera);
       }
       animate();
     }
 
-    // Direktstart
+    // Start
     init();
   </script>
 </body>
