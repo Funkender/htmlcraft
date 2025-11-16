@@ -1,1 +1,55 @@
+body { margin:0; overflow:hidden; background:#000; }
+canvas { display:block; }
+
+/* HUD */
+#crosshair {
+  position:absolute; top:50%; left:50%;
+  width:6px; height:6px; background:#fff;
+  border-radius:50%; transform:translate(-50%,-50%); z-index:10;
+}
+#info, #blockInfo {
+  position:absolute; color:white; font-family:monospace;
+  background:rgba(0,0,0,0.5); padding:5px; border-radius:3px; z-index:10;
+}
+#info { top:10px; left:10px; font-size:12px; }
+#blockInfo { bottom:10px; left:10px; font-size:14px; }
+
+/* Buttons */
+.btn {
+  position:absolute; background:#333; color:white;
+  padding:10px; border-radius:5px; font-size:14px;
+  border:2px solid #555; z-index:20; user-select:none;
+}
+#btnBreak { left:20px; bottom:20px; }
+#btnPlace { left:120px; bottom:20px; }
+#btn1 { right:20px; bottom:80px; }
+#btn2 { right:20px; bottom:140px; }
+
+/* Joysticks Standard */
+.joystick {
+  position:absolute; width:120px; height:120px;
+  border-radius:50%; background:rgba(255,255,255,0.1);
+  z-index:20; touch-action:none;
+}
+.stick {
+  position:absolute; width:60px; height:60px; border-radius:50%;
+  background:rgba(255,255,255,0.3); top:30px; left:30px;
+}
+#joyMove { left:20px; bottom:220px; }
+#joyLook { right:20px; bottom:220px; }
+
+/* 📱 Querformat-Anpassung */
+@media screen and (orientation: landscape) {
+  #btnBreak { left:20px; bottom:20px; }
+  #btnPlace { left:160px; bottom:20px; }
+  #btn1 { right:20px; bottom:20px; }
+  #btn2 { right:160px; bottom:20px; }
+
+  /* Joysticks weiter nach unten */
+  #joyMove { left:20px; bottom:40px; }
+  #joyLook { right:20px; bottom:40px; }
+
+  /* BlockInfo nach oben verschieben */
+  #blockInfo { bottom:auto; top:50px; left:10px; }
+}
 
