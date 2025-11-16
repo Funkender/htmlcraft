@@ -44,59 +44,48 @@
   return `${x},${z}`;
 }
 
-function generateChunk(scene, x, z) {
-  const geo = new THREE.BoxGeometry(1, 1, 1);
+// --- Simpler Terrain Generator: nur sichtbare Blöcke, Chunk 8x8, Höhe 22 ---
+function generateChunk(scene, cx, cz) {
   const chunk = new THREE.Group();
+  const geo = new THREE.BoxGeometry(1,1,1);
 
-  // --- Layer 1: komplett gefüllt ---
-  for (let i = 0; i < CHUNK_SIZE; i++) {
-    for (let j = 0; j < CHUNK_SIZE; j++) {
-      const worldX = x * CHUNK_SIZE + i;
-      const worldZ = z * CHUNK_SIZE + j;
-      const block = new THREE.Mesh(geo, matBrown);
-      block.position.set(worldX, 0, worldZ); // Layer 1 = y=0
+  // Materialien für jede Fläche: [right, left, top, bottom, front, back]
+  const blockMaterials = [
+    matBrown, // right
+    matBrown, // left
+    matGreen, // top
+    matBrown, // bottom
+    matBrown, // front
+    matBrown  // back
+  ];
+
+  // Terrain-Parameter
+  const scale = 0.15;   // Hügelbreite
+  const maxHeight = 22; // maximale Höhe
+
+  // einfache Noise-Funktion
+  function noise2D(x, z) {
+    return Math.sin(x * scale) + Math.cos(z * scale);
+  }
+
+  for (let i = 0; i < 8; i++) {          // CHUNK_SIZE = 8
+    for (let j = 0; j < 8; j++) {
+      const x = cx * 8 + i;
+      const z = cz * 8 + j;
+
+      // Höhe berechnen
+      const n = noise2D(x, z);
+      const h = Math.floor((n + 2) / 4 * maxHeight);
+
+      // Nur den obersten Block setzen
+      const block = new THREE.Mesh(geo, blockMaterials);
+      block.position.set(x, h, z);
       chunk.add(block);
     }
   }
 
-  // --- Layer 2: mit bis zu 2 Löchern ---
-  const holes = [];
-  const numHoles = Math.floor(Math.random() * 3); // 0, 1 oder 2 Löcher
-
-  for (let h = 0; h < numHoles; h++) {
-    const holeSize = Math.floor(3 + Math.random() * 9); // 3..11
-    const holeX = x * CHUNK_SIZE + Math.floor(Math.random() * (CHUNK_SIZE - holeSize));
-    const holeZ = z * CHUNK_SIZE + Math.floor(Math.random() * (CHUNK_SIZE - holeSize));
-    holes.push({ holeX, holeZ, holeSize });
-  }
-
-  for (let i = 0; i < CHUNK_SIZE; i++) {
-    for (let j = 0; j < CHUNK_SIZE; j++) {
-      const worldX = x * CHUNK_SIZE + i;
-      const worldZ = z * CHUNK_SIZE + j;
-
-      // prüfen ob in einem Loch
-      let inHole = false;
-      for (const hole of holes) {
-        if (
-          worldX >= hole.holeX && worldX < hole.holeX + hole.holeSize &&
-          worldZ >= hole.holeZ && worldZ < hole.holeZ + hole.holeSize
-        ) {
-          inHole = true;
-          break;
-        }
-      }
-
-      if (!inHole) {
-        const block = new THREE.Mesh(geo, matGreen);
-        block.position.set(worldX, 1, worldZ); // Layer 2 = y=1
-        chunk.add(block);
-      }
-    }
-  }
-
   scene.add(chunk);
-  loadedChunks.set(chunkKey(x, z), chunk);
+  loadedChunks.set(chunkKey(cx, cz), chunk);
 }
 
 
@@ -126,6 +115,46 @@ function generateChunk(scene, x, z) {
         }
       }
     }
+
+
+
+
+// --- FPS Anzeige ---
+(function setupFPS() {
+  const fpsEl = document.createElement('div');
+  fpsEl.style.position = 'fixed';
+  fpsEl.style.top = '5px';
+  fpsEl.style.right = '5px';
+  fpsEl.style.padding = '4px 8px';
+  fpsEl.style.background = 'rgba(0,0,0,0.5)';
+  fpsEl.style.color = '#0f0';
+  fpsEl.style.fontFamily = 'monospace';
+  fpsEl.style.fontSize = '14px';
+  fpsEl.style.zIndex = '9999';
+  fpsEl.textContent = 'FPS: ...';
+  document.body.appendChild(fpsEl);
+
+  let lastTime = performance.now();
+  let frames = 0;
+
+  function updateFPS() {
+    const now = performance.now();
+    frames++;
+    if (now - lastTime >= 1000) {
+      fpsEl.textContent = `FPS: ${frames}`;
+      frames = 0;
+      lastTime = now;
+    }
+    requestAnimationFrame(updateFPS);
+  }
+  updateFPS();
+})();
+
+
+
+
+
+
 
     // --- Init ---
     function init() {
@@ -250,6 +279,26 @@ function generateChunk(scene, x, z) {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
+
+
+
+// --- Kamera-Offset ---
+(function setupCameraOffset() {
+  const OFFSET_Y = 2; // Höhe über Spieler
+
+  function updateCameraOffset() {
+    camera.position.y = OFFSET_Y;
+  }
+
+  const oldAnimate = animate;
+  animate = function() {
+    oldAnimate();
+    updateCameraOffset();
+  };
+})();
+
+
+
 
       // Hilfsfunktion: Bodenhöhe ermitteln
 function getGroundHeight(scene, x, z) {
