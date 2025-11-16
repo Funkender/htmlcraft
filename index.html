@@ -251,23 +251,44 @@ function generateChunk(scene, x, z) {
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
-      // Hauptloop
-      function animate() {
-        requestAnimationFrame(animate);
+      // Hilfsfunktion: Bodenhöhe ermitteln
+function getGroundHeight(scene, x, z) {
+  let maxY = 0;
+  scene.traverse(obj => {
+    if (obj.isMesh && obj.position.x === x && obj.position.z === z) {
+      if (obj.position.y > maxY) maxY = obj.position.y;
+    }
+  });
+  return maxY + 1; // +1 damit der Spieler über dem Block steht
+}
 
-        // Bewegung (Vorwärts/Rückwärts + Strafe), an Yaw orientiert
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
-        yawObject.position.addScaledVector(forward, -moveDY * 0.5);
-        yawObject.position.addScaledVector(right, moveDX * 0.5);
-        if (yawObject.position.y < 1) yawObject.position.y = 1;
+// Hauptloop
+function animate() {
+  requestAnimationFrame(animate);
 
-        // Look
-        yawObject.rotation.y -= lookDX * 0.05;
-        pitchObject.rotation.x -= lookDY * 0.05;
-        const maxPitch = Math.PI / 2;
-        if (pitchObject.rotation.x > maxPitch) pitchObject.rotation.x = maxPitch;
-        if (pitchObject.rotation.x < -maxPitch) pitchObject.rotation.x = -maxPitch;
+  // Bewegung (Vorwärts/Rückwärts + Strafe), an Yaw orientiert
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
+  yawObject.position.addScaledVector(forward, -moveDY * 0.5);
+  yawObject.position.addScaledVector(right, moveDX * 0.5);
+
+  // Gravitation
+  yawObject.position.y -= 0.1; // Fallgeschwindigkeit
+  const px = Math.floor(yawObject.position.x);
+  const pz = Math.floor(yawObject.position.z);
+  const groundY = getGroundHeight(scene, px, pz);
+  if (yawObject.position.y < groundY) {
+    yawObject.position.y = groundY;
+  
+
+  // Look
+  yawObject.rotation.y -= lookDX * 0.05;
+  pitchObject.rotation.x -= lookDY * 0.05;
+  const maxPitch = Math.PI / 2;
+  if (pitchObject.rotation.x > maxPitch) pitchObject.rotation.x = maxPitch;
+  if (pitchObject.rotation.x < -maxPitch) pitchObject.rotation.x = -maxPitch;
+
+}
 
         // Chunks
         updateVisibleChunks(scene, yawObject);
