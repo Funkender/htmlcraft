@@ -40,23 +40,71 @@
     const matBrown = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
     let currentMaterial = matGreen;
 
-    // --- Weltgenerierung ---
-    function chunkKey(x, z) { return `${x},${z}`; }
+    function chunkKey(x, z) {
+  return `${x},${z}`;
+}
 
-    function generateChunk(scene, x, z) {
-      const geo = new THREE.BoxGeometry(1, 1, 1);
-      const chunk = new THREE.Group();
-      for (let i = 0; i < CHUNK_SIZE; i++) {
-        for (let j = 0; j < CHUNK_SIZE; j++) {
-          const mat = (Math.random() < 0.75) ? matGreen : matBrown;
-          const block = new THREE.Mesh(geo, mat);
-          block.position.set(x * CHUNK_SIZE + i, 0, z * CHUNK_SIZE + j);
-          chunk.add(block);
+function generateChunk(scene, x, z) {
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const chunk = new THREE.Group();
+
+  // --- Layer 1: komplett gefüllt ---
+  for (let i = 0; i < CHUNK_SIZE; i++) {
+    for (let j = 0; j < CHUNK_SIZE; j++) {
+      const worldX = x * CHUNK_SIZE + i;
+      const worldZ = z * CHUNK_SIZE + j;
+      const block = new THREE.Mesh(geo, matBrown);
+      block.position.set(worldX, 0, worldZ); // Layer 1 = y=0
+      chunk.add(block);
+    }
+  }
+
+  // --- Layer 2: mit bis zu 2 Löchern ---
+  const holes = [];
+  const numHoles = Math.floor(Math.random() * 3); // 0, 1 oder 2 Löcher
+
+  for (let h = 0; h < numHoles; h++) {
+    const holeSize = Math.floor(3 + Math.random() * 9); // 3..11
+    const holeX = x * CHUNK_SIZE + Math.floor(Math.random() * (CHUNK_SIZE - holeSize));
+    const holeZ = z * CHUNK_SIZE + Math.floor(Math.random() * (CHUNK_SIZE - holeSize));
+    holes.push({ holeX, holeZ, holeSize });
+  }
+
+  for (let i = 0; i < CHUNK_SIZE; i++) {
+    for (let j = 0; j < CHUNK_SIZE; j++) {
+      const worldX = x * CHUNK_SIZE + i;
+      const worldZ = z * CHUNK_SIZE + j;
+
+      // prüfen ob in einem Loch
+      let inHole = false;
+      for (const hole of holes) {
+        if (
+          worldX >= hole.holeX && worldX < hole.holeX + hole.holeSize &&
+          worldZ >= hole.holeZ && worldZ < hole.holeZ + hole.holeSize
+        ) {
+          inHole = true;
+          break;
         }
       }
-      scene.add(chunk);
-      loadedChunks.set(chunkKey(x, z), chunk);
+
+      if (!inHole) {
+        const block = new THREE.Mesh(geo, matGreen);
+        block.position.set(worldX, 1, worldZ); // Layer 2 = y=1
+        chunk.add(block);
+      }
     }
+  }
+
+  scene.add(chunk);
+  loadedChunks.set(chunkKey(x, z), chunk);
+}
+
+
+
+
+
+
+
 
     function updateVisibleChunks(scene, player) {
       const px = Math.floor(player.position.x / CHUNK_SIZE);
