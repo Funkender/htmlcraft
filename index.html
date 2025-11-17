@@ -64,12 +64,16 @@ function generateChunk(scene, cx, cz) {
   ];
 
   // Terrain-Parameter
-  const scale = 0.15;   // Hügelbreite
-  const maxHeight = 22; // maximale Höhe
+  const scaleBase = 0.12;   // grobe Hügelbreite
+  const scaleDetail = 0.25; // kleine Unebenheiten
+  const maxHeight = 13;     // maximale Höhe
 
-  // einfache Noise-Funktion
+  // kombinierte Noise-Funktion
   function noise2D(x, z) {
-    return Math.sin(x * scale) + Math.cos(z * scale);
+    const base = Math.sin(x * scaleBase) + Math.cos(z * scaleBase);
+    const detail = Math.sin(x * scaleDetail * 1.5) * Math.cos(z * scaleDetail);
+    const randomOffset = Math.sin((x + z) * 0.05); // leichte Varianz
+    return base + detail * 0.5 + randomOffset * 0.3;
   }
 
   for (let i = 0; i < CHUNK_SIZE; i++) {
@@ -99,6 +103,14 @@ function generateChunk(scene, cx, cz) {
   scene.add(chunk);
   loadedChunks.set(chunkKey(cx, cz), chunk);
 }
+
+
+
+
+
+
+
+
 
 
 
