@@ -44,10 +44,10 @@
   return `${x},${z}`;
 }
 
-// --- Simpler Terrain Generator: nur sichtbare Blöcke, Chunk 8x8, Höhe 22 ---
+// --- Terrain Generator mit Schatten ---
 function generateChunk(scene, cx, cz) {
   const chunk = new THREE.Group();
-  const geo = new THREE.BoxGeometry(1,1,1);
+  const geo = new THREE.BoxGeometry(1, 1, 1);
 
   // Materialien für jede Fläche: [right, left, top, bottom, front, back]
   const blockMaterials = [
@@ -68,25 +68,34 @@ function generateChunk(scene, cx, cz) {
     return Math.sin(x * scale) + Math.cos(z * scale);
   }
 
-  for (let i = 0; i < 8; i++) {          // CHUNK_SIZE = 8
-    for (let j = 0; j < 8; j++) {
-      const x = cx * 8 + i;
-      const z = cz * 8 + j;
+  for (let i = 0; i < CHUNK_SIZE; i++) {
+    for (let j = 0; j < CHUNK_SIZE; j++) {
+      const x = cx * CHUNK_SIZE + i;
+      const z = cz * CHUNK_SIZE + j;
 
       // Höhe berechnen
       const n = noise2D(x, z);
       const h = Math.floor((n + 2) / 4 * maxHeight);
 
-      // Nur den obersten Block setzen
+      // Block erzeugen
       const block = new THREE.Mesh(geo, blockMaterials);
       block.position.set(x, h, z);
+
+      // --- Schatten-Flags ---
+      block.castShadow = true;     // wirft Schatten
+      block.receiveShadow = true;  // empfängt Schatten
+
       chunk.add(block);
     }
   }
 
+  // Ganzer Chunk empfängt Schatten
+  chunk.receiveShadow = true;
+
   scene.add(chunk);
   loadedChunks.set(chunkKey(cx, cz), chunk);
 }
+
 
 
 
@@ -187,11 +196,34 @@ function updateVisibleChunks(scene, player) {
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(renderer.domElement);
 
-      // Licht
-      const light = new THREE.DirectionalLight(0xffffff, 1);
-      light.position.set(10, 20, 10);
-      scene.add(light);
-      scene.add(new THREE.AmbientLight(0x222222));
+      // --- Licht & Schatten (scharf) ---
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap; // schärfer als SoftShadow
+
+// Umgebungslicht für Grundhelligkeit
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // etwas dunkler, damit Schatten kontrastreich wirken
+scene.add(ambientLight);
+
+// Sonnenlicht (DirectionalLight mit Schatten)
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+sunLight.position.set(50, 60, 50); // etwas tiefer für längere Schatten
+sunLight.castShadow = true;
+
+// Schärfere Schatten durch große MapSize
+sunLight.shadow.mapSize.width = 4096;
+sunLight.shadow.mapSize.height = 4096;
+
+// Schatten-Kamera enger setzen, damit die Auflösung nicht „verwaschen“ wirkt
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 300;
+sunLight.shadow.camera.left = -100;
+sunLight.shadow.camera.right = 100;
+sunLight.shadow.camera.top = 100;
+sunLight.shadow.camera.bottom = -100;
+
+scene.add(sunLight);
+
+
 
       // Pitch/Yaw Rig
       const yawObject = new THREE.Object3D();
@@ -319,6 +351,10 @@ function updateVisibleChunks(scene, player) {
     updateCameraOffset();
   };
 })();
+
+
+
+
 
 
 
