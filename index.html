@@ -348,7 +348,7 @@ window.addEventListener('resize', () => {
 
 // --- RTX Toggle Setup ---
 // Globale Variable
-let rtxEnabled = false;
+let rtxEnabled = true;
 
 // Funktion zum Umschalten
 function toggleRTX() {
@@ -408,7 +408,7 @@ function animate() {
   yawObject.position.addScaledVector(right, moveDX * 0.5);
 
   // Gravitation (schnelleres Fallen)
-  const FALL_SPEED = 0.3; // hier kannst du den Wert anpassen
+  const FALL_SPEED = 0.8; // hier kannst du den Wert anpassen
   yawObject.position.y -= FALL_SPEED;
   const px = Math.floor(yawObject.position.x);
   const pz = Math.floor(yawObject.position.z);
