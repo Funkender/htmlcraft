@@ -18,6 +18,10 @@
   <div id="btnPlace" class="btn">Place</div>
   <div id="btn1" class="btn">1 (Brown)</div>
   <div id="btn2" class="btn">2 (Green)</div>
+  <button id="btnRTX" style="position:absolute; bottom:10px; right:10px;">
+  RTX Toggle
+</button>
+
 
   <!-- Joysticks -->
   <div id="joyMove" class="joystick"><div class="stick"></div></div>
@@ -144,6 +148,7 @@ function updateVisibleChunks(scene, player) {
 
 
 
+
    
 
 
@@ -181,6 +186,7 @@ function updateVisibleChunks(scene, player) {
   }
   updateFPS();
 })();
+
 
 
 
@@ -233,107 +239,134 @@ scene.add(sunLight);
       scene.add(yawObject);
       yawObject.position.set(0, 5, 0);
 
-      // HUD Info
-      const infoEl = document.getElementById('info');
-      function updateHUD() {
-        infoEl.textContent = `Pos: (${yawObject.position.x.toFixed(1)}, ${yawObject.position.y.toFixed(1)}, ${yawObject.position.z.toFixed(1)})`;
+      // --- HUD Info ---
+const infoEl = document.getElementById('info');
+function updateHUD() {
+  infoEl.textContent = `Pos: (${yawObject.position.x.toFixed(1)}, ${yawObject.position.y.toFixed(1)}, ${yawObject.position.z.toFixed(1)})`;
+}
+
+// --- Buttons (ohne Raycast) ---
+document.getElementById('btnBreak').addEventListener('touchstart', () => {
+  const pos = yawObject.position.clone().floor();
+  pos.y = 0;
+  let toRemove = null;
+  scene.traverse(obj => {
+    if (toRemove) return;
+    if (obj.isMesh && obj.position.x === pos.x && obj.position.y === pos.y && obj.position.z === pos.z) {
+      toRemove = obj;
+    }
+  });
+  if (toRemove) {
+    toRemove.parent?.remove(toRemove);
+  }
+});
+
+document.getElementById('btnPlace').addEventListener('touchstart', () => {
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+  const pos = yawObject.position.clone().add(forward).round();
+  pos.y = 0;
+  const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), currentMaterial);
+  block.position.copy(pos);
+  block.castShadow = rtxEnabled;
+  block.receiveShadow = rtxEnabled;
+  scene.add(block);
+});
+
+document.getElementById('btn1').addEventListener('touchstart', () => {
+  currentMaterial = matBrown;
+  document.getElementById('blockInfo').innerText = "Placing: BROWN";
+});
+document.getElementById('btn2').addEventListener('touchstart', () => {
+  currentMaterial = matGreen;
+  document.getElementById('blockInfo').innerText = "Placing: GREEN";
+});
+
+// --- RTX Toggle Button ---
+document.getElementById('btnRTX').addEventListener('touchstart', () => {
+  toggleRTX();
+  document.getElementById('blockInfo').innerText = "RTX: " + (rtxEnabled ? "ON" : "OFF");
+});
+
+// --- Joystick Werte speichern ---
+let moveDX = 0, moveDY = 0;
+let lookDX = 0, lookDY = 0;
+
+function setupJoystick(id) {
+  const joy = document.getElementById(id);
+  const stick = joy.querySelector('.stick');
+  let activeTouchId = null;
+
+  ['touchstart', 'touchmove'].forEach(evt => {
+    joy.addEventListener(evt, e => e.preventDefault(), { passive: false });
+  });
+
+  joy.addEventListener('touchstart', e => {
+    const touch = e.changedTouches[0];
+    activeTouchId = touch.identifier;
+  });
+
+  joy.addEventListener('touchend', e => {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === activeTouchId) {
+        activeTouchId = null;
+        stick.style.top = "30px";
+        stick.style.left = "30px";
+        if (id === "joyMove") { moveDX = 0; moveDY = 0; }
+        if (id === "joyLook") { lookDX = 0; lookDY = 0; }
       }
+    }
+  });
 
-      // Buttons (ohne Raycast)
-      document.getElementById('btnBreak').addEventListener('click', () => {
-        // Entfernt Block auf exakt der Integer-Position des Spielers (auf y=0 Ebene bevorzugt)
-        const pos = yawObject.position.clone().floor();
-        // Falls Spieler über Boden schwebt, nur Bodenebene prüfen
-        pos.y = 0;
-        // passenden Mesh finden und entfernen
-        let toRemove = null;
-        scene.traverse(obj => {
-          if (toRemove) return;
-          if (obj.isMesh && obj.position.x === pos.x && obj.position.y === pos.y && obj.position.z === pos.z) {
-            toRemove = obj;
-          }
-        });
-        if (toRemove) {
-          toRemove.parent?.remove(toRemove);
-        }
-      });
-
-      document.getElementById('btnPlace').addEventListener('click', () => {
-        // Setzt Block eine Einheit vor dem Spieler, gerastert auf ganze Koordinaten
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
-        const pos = yawObject.position.clone().add(forward).round();
-        pos.y = 0; // auf Bodenebene platzieren
-        const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), currentMaterial);
-        block.position.copy(pos);
-        scene.add(block);
-      });
-
-      document.getElementById('btn1').addEventListener('click', () => {
-        currentMaterial = matBrown;
-        document.getElementById('blockInfo').innerText = "Placing: BROWN";
-      });
-      document.getElementById('btn2').addEventListener('click', () => {
-        currentMaterial = matGreen;
-        document.getElementById('blockInfo').innerText = "Placing: GREEN";
-      });
-
-      // --- Joystick Werte speichern ---
-      let moveDX = 0, moveDY = 0;
-      let lookDX = 0, lookDY = 0;
-
-      function setupJoystick(id) {
-        const joy = document.getElementById(id);
-        const stick = joy.querySelector('.stick');
-        let activeTouchId = null;
-
-        // iOS: Default Scrolling/Zoom verhindern
-        ['touchstart', 'touchmove'].forEach(evt => {
-          joy.addEventListener(evt, e => e.preventDefault(), { passive: false });
-        });
-
-        joy.addEventListener('touchstart', e => {
-          const touch = e.changedTouches[0];
-          activeTouchId = touch.identifier;
-        });
-
-        joy.addEventListener('touchend', e => {
-          for (const touch of e.changedTouches) {
-            if (touch.identifier === activeTouchId) {
-              activeTouchId = null;
-              stick.style.top = "30px";
-              stick.style.left = "30px";
-              if (id === "joyMove") { moveDX = 0; moveDY = 0; }
-              if (id === "joyLook") { lookDX = 0; lookDY = 0; }
-            }
-          }
-        });
-
-        joy.addEventListener('touchmove', e => {
-          for (const touch of e.touches) {
-            if (touch.identifier === activeTouchId) {
-              const rect = joy.getBoundingClientRect();
-              const dx = touch.clientX - (rect.left + rect.width / 2);
-              const dy = touch.clientY - (rect.top + rect.height / 2);
-              // visueller Offset
-              stick.style.left = (30 + dx * 0.3) + "px";
-              stick.style.top  = (30 + dy * 0.3) + "px";
-              // normierte Werte
-              if (id === "joyMove") { moveDX = dx / rect.width; moveDY = dy / rect.height; }
-              if (id === "joyLook") { lookDX = dx / rect.width; lookDY = dy / rect.height; }
-            }
-          }
-        });
+  joy.addEventListener('touchmove', e => {
+    for (const touch of e.touches) {
+      if (touch.identifier === activeTouchId) {
+        const rect = joy.getBoundingClientRect();
+        const dx = touch.clientX - (rect.left + rect.width / 2);
+        const dy = touch.clientY - (rect.top + rect.height / 2);
+        stick.style.left = (30 + dx * 0.3) + "px";
+        stick.style.top  = (30 + dy * 0.3) + "px";
+        if (id === "joyMove") { moveDX = dx / rect.width; moveDY = dy / rect.height; }
+        if (id === "joyLook") { lookDX = dx / rect.width; lookDY = dy / rect.height; }
       }
+    }
+  });
+}
 
-      setupJoystick('joyMove');
-      setupJoystick('joyLook');
+setupJoystick('joyMove');
+setupJoystick('joyLook');
 
-      // Resize
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
+// --- Resize ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+
+
+
+
+// --- RTX Toggle Setup ---
+// Globale Variable
+let rtxEnabled = false;
+
+// Funktion zum Umschalten
+function toggleRTX() {
+  rtxEnabled = !rtxEnabled;
+
+  // Renderer bleibt immer aktiv, sonst initialisiert er keine Shadow-Maps
+  renderer.shadowMap.enabled = true;
+
+  // Alle Objekte im Scene-Graph durchgehen
+  scene.traverse(obj => {
+    if (obj.isMesh) {
+      obj.castShadow = rtxEnabled;
+      obj.receiveShadow = rtxEnabled;
+    }
+  });
+
+  console.log("RTX ist jetzt " + (rtxEnabled ? "AN" : "AUS"));
+}
 
 
 
@@ -351,12 +384,6 @@ scene.add(sunLight);
     updateCameraOffset();
   };
 })();
-
-
-
-
-
-
 
 
       // Hilfsfunktion: Bodenhöhe ermitteln
