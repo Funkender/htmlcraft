@@ -20,12 +20,8 @@ canvas { display:block; }
   padding:10px; border-radius:5px; font-size:14px;
   border:2px solid #555; z-index:20; user-select:none;
 }
-#btnBreak { left:20px; bottom:20px; }
-#btnPlace { left:120px; bottom:20px; }
-#btn1 { right:20px; bottom:80px; }
-#btn2 { right:20px; bottom:140px; }
 
-/* Joysticks Standard */
+/* Joysticks */
 .joystick {
   position:absolute; width:120px; height:120px;
   border-radius:50%; background:rgba(255,255,255,0.1);
@@ -35,21 +31,42 @@ canvas { display:block; }
   position:absolute; width:60px; height:60px; border-radius:50%;
   background:rgba(255,255,255,0.3); top:30px; left:30px;
 }
-#joyMove { left:20px; bottom:220px; }
-#joyLook { right:20px; bottom:220px; }
+
+/* Linker Joystick */
+#joyMove { left:60px; bottom:80px; }
+/* Rechter Joystick */
+#joyLook { right:60px; bottom:80px; }
+
+/* Buttons über den Joysticks */
+#btnBreak { left:90px; bottom:220px; }   /* über #joyMove */
+#btnPlace { right:90px; bottom:220px; }  /* über #joyLook */
+
+/* Buttons daneben */
+#btnBrown { left:20px; bottom:220px; }   /* links neben Break */
+#btnGreen { right:20px; bottom:220px; }  /* rechts neben Place */
+
+/* Zusätzliche Buttons rechts */
+#btn1 { right:20px; bottom:80px; }
+#btn2 { right:20px; bottom:140px; }
 
 /* 📱 Querformat-Anpassung */
 @media screen and (orientation: landscape) {
-  #btnBreak { left:20px; bottom:20px; }
-  #btnPlace { left:160px; bottom:20px; }
-  #btn1 { right:20px; bottom:20px; }
-  #btn2 { right:160px; bottom:20px; }
+  /* Joysticks */
+  #joyMove { left:100px; bottom:40px; }
+  #joyLook { right:100px; bottom:40px; }
 
-  /* Joysticks weiter nach unten */
-  #joyMove { left:20px; bottom:40px; }
-  #joyLook { right:20px; bottom:40px; }
+  /* Buttons über den Joysticks */
+  #btnBreak { left:130px; bottom:160px; }
+  #btnPlace { right:130px; bottom:160px; }
+
+  /* Buttons daneben */
+  #btnBrown { left:60px; bottom:160px; }   /* links neben Break */
+  #btnGreen { right:60px; bottom:160px; }  /* rechts neben Place */
+
+  /* Zusätzliche Buttons rechts unten */
+  #btn1 { right:40px; bottom:40px; }
+  #btn2 { right:200px; bottom:40px; }
 
   /* BlockInfo nach oben verschieben */
   #blockInfo { bottom:auto; top:50px; left:10px; }
 }
-
