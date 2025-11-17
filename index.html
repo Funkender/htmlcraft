@@ -344,34 +344,36 @@ function animate() {
   yawObject.position.addScaledVector(forward, -moveDY * 0.5);
   yawObject.position.addScaledVector(right, moveDX * 0.5);
 
-  // Gravitation
-  yawObject.position.y -= 0.1; // Fallgeschwindigkeit
+  // Gravitation (schnelleres Fallen)
+  const FALL_SPEED = 0.3; // hier kannst du den Wert anpassen
+  yawObject.position.y -= FALL_SPEED;
   const px = Math.floor(yawObject.position.x);
   const pz = Math.floor(yawObject.position.z);
   const groundY = getGroundHeight(scene, px, pz);
   if (yawObject.position.y < groundY) {
     yawObject.position.y = groundY;
-  
+  }
 
-  // Look
+  // Look (immer aktiv, auch während des Fallens)
   yawObject.rotation.y -= lookDX * 0.05;
   pitchObject.rotation.x -= lookDY * 0.05;
   const maxPitch = Math.PI / 2;
   if (pitchObject.rotation.x > maxPitch) pitchObject.rotation.x = maxPitch;
   if (pitchObject.rotation.x < -maxPitch) pitchObject.rotation.x = -maxPitch;
 
+  // Chunks
+  updateVisibleChunks(scene, yawObject);
+
+  // HUD
+  updateHUD();
+
+  renderer.render(scene, camera);
 }
 
-        // Chunks
-        updateVisibleChunks(scene, yawObject);
+// Start der Loop
+animate();
+}
 
-        // HUD
-        updateHUD();
-
-        renderer.render(scene, camera);
-      }
-      animate();
-    }
 
     // Start
     init();
