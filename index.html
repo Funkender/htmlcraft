@@ -31,8 +31,8 @@
     import * as THREE from "three";
 
     // --- Config ---
-    const CHUNK_SIZE = 16;
-    const VISIBLE_DISTANCE = 3;
+    const CHUNK_SIZE = 8;
+    const VISIBLE_DISTANCE = 6;
     const loadedChunks = new Map();
 
     // Materialien (beleuchtet)
@@ -93,28 +93,51 @@ function generateChunk(scene, cx, cz) {
 
 
 
+function updateVisibleChunks(scene, player) {
+  const px = Math.floor(player.position.x / CHUNK_SIZE);
+  const pz = Math.floor(player.position.z / CHUNK_SIZE);
 
+  // --- Nachladen ---
+  for (let dx = -VISIBLE_DISTANCE; dx <= VISIBLE_DISTANCE; dx++) {
+    for (let dz = -VISIBLE_DISTANCE; dz <= VISIBLE_DISTANCE; dz++) {
+      const cx = px + dx;
+      const cz = pz + dz;
+      const key = chunkKey(cx, cz);
 
-    function updateVisibleChunks(scene, player) {
-      const px = Math.floor(player.position.x / CHUNK_SIZE);
-      const pz = Math.floor(player.position.z / CHUNK_SIZE);
-
-      // Nachladen
-      for (let dx = -VISIBLE_DISTANCE; dx <= VISIBLE_DISTANCE; dx++) {
-        for (let dz = -VISIBLE_DISTANCE; dz <= VISIBLE_DISTANCE; dz++) {
-          const cx = px + dx, cz = pz + dz, key = chunkKey(cx, cz);
-          if (!loadedChunks.has(key)) generateChunk(scene, cx, cz);
-        }
-      }
-      // Entfernen
-      for (const [key, chunk] of loadedChunks) {
-        const [cx, cz] = key.split(",").map(Number);
-        if (Math.abs(cx - px) > VISIBLE_DISTANCE || Math.abs(cz - pz) > VISIBLE_DISTANCE) {
-          scene.remove(chunk);
-          loadedChunks.delete(key);
+      if (!loadedChunks.has(key)) {
+        const chunk = generateChunk(scene, cx, cz);
+        if (chunk) {
+          scene.add(chunk);
+          loadedChunks.set(key, chunk);
         }
       }
     }
+  }
+
+  // --- Entfernen mit Puffer ---
+  const REMOVE_DISTANCE = VISIBLE_DISTANCE + 1; // Puffer
+  for (const [key, chunk] of loadedChunks) {
+    const [cx, cz] = key.split(",").map(Number);
+    if (
+      Math.abs(cx - px) > REMOVE_DISTANCE ||
+      Math.abs(cz - pz) > REMOVE_DISTANCE
+    ) {
+      scene.remove(chunk);
+      loadedChunks.delete(key);
+    }
+  }
+}
+
+
+
+
+
+
+
+
+   
+
+
 
 
 
