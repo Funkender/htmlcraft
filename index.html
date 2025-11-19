@@ -231,7 +231,7 @@ renderer.shadowMap.autoUpdate = false;
 setInterval(() => {
   renderer.shadowMap.needsUpdate = true;
   console.log("Shadow Map aktualisiert");
-}, 15000);
+}, 1);
 
 
 // Umgebungslicht für Grundhelligkeit
@@ -414,6 +414,11 @@ function toggleRTX() {
 })();
 
 
+
+
+
+
+
       // Hilfsfunktion: Bodenhöhe ermitteln
 
 function getGroundHeight(x, z) {
@@ -463,12 +468,22 @@ function animate() {
   // --- HUD aktualisieren ---
   updateHUD();
 
+  // --- Schattenkamera dem Spieler folgen lassen ---
+  sunLight.position.set(
+    yawObject.position.x + 50,
+    yawObject.position.y + 100,
+    yawObject.position.z + 50
+  );
+  sunLight.target.position.copy(yawObject.position);
+  sunLight.target.updateMatrixWorld();
+
   // --- Rendern ---
   renderer.render(scene, camera);
 }
 
 // Start der Loop
 animate();
+
 
 }
 
