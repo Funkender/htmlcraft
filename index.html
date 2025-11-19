@@ -34,48 +34,54 @@
   <script type="module">
     import * as THREE from "three";
 
-    // --- Config ---
-    const CHUNK_SIZE = 8;
-    const VISIBLE_DISTANCE = 6;
-    const loadedChunks = new Map();
+    // --- Globale Variablen ---
+const CHUNK_SIZE = 8;
+const VISIBLE_DISTANCE = 6;
+const loadedChunks = new Map();
 
-    // Materialien (beleuchtet)
-    const matGreen = new THREE.MeshLambertMaterial({ color: 0x006400 });
-    const matBrown = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-    let currentMaterial = matGreen;
+// Materialien
+const matGreen = new THREE.MeshLambertMaterial({ color: 0x006400 });
+const matBrown = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
 
-    function chunkKey(x, z) {
+// Heightmap für Kollision
+const heightMap = new Map();
+
+// Hilfsfunktion für Chunk-Key
+function chunkKey(x, z) {
   return `${x},${z}`;
 }
 
-// --- Terrain Generator mit Schatten ---
+// --- Terrain Generator mit Instancing ---
 function generateChunk(scene, cx, cz) {
   const chunk = new THREE.Group();
   const geo = new THREE.BoxGeometry(1, 1, 1);
 
-  // Materialien für jede Fläche: [right, left, top, bottom, front, back]
-  const blockMaterials = [
-    matBrown, // right
-    matBrown, // left
-    matGreen, // top
-    matBrown, // bottom
-    matBrown, // front
-    matBrown  // back
-  ];
+  // Ein Material für alle Instanzen
+  const matBlock = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+
+  // InstancedMesh vorbereiten
+  const maxInstances = CHUNK_SIZE * CHUNK_SIZE;
+  const instancedMesh = new THREE.InstancedMesh(geo, matBlock, maxInstances);
+  instancedMesh.castShadow = true;
+  instancedMesh.receiveShadow = true;
 
   // Terrain-Parameter
-  const scaleBase = 0.12;   // grobe Hügelbreite
-  const scaleDetail = 0.25; // kleine Unebenheiten
-  const maxHeight = 13;     // maximale Höhe
+  const scaleBase = 0.12;
+  const scaleDetail = 0.25;
+  const maxHeight = 13;
 
   // kombinierte Noise-Funktion
   function noise2D(x, z) {
     const base = Math.sin(x * scaleBase) + Math.cos(z * scaleBase);
     const detail = Math.sin(x * scaleDetail * 1.5) * Math.cos(z * scaleDetail);
-    const randomOffset = Math.sin((x + z) * 0.05); // leichte Varianz
+    const randomOffset = Math.sin((x + z) * 0.05);
     return base + detail * 0.5 + randomOffset * 0.3;
   }
 
+  const dummy = new THREE.Object3D();
+  let index = 0;
+
+  // Schleife über alle Blockpositionen im Chunk
   for (let i = 0; i < CHUNK_SIZE; i++) {
     for (let j = 0; j < CHUNK_SIZE; j++) {
       const x = cx * CHUNK_SIZE + i;
@@ -85,24 +91,24 @@ function generateChunk(scene, cx, cz) {
       const n = noise2D(x, z);
       const h = Math.floor((n + 2) / 4 * maxHeight);
 
-      // Block erzeugen
-      const block = new THREE.Mesh(geo, blockMaterials);
-      block.position.set(x, h, z);
+      // Höhe speichern für Kollision
+      heightMap.set(`${x},${z}`, h);
 
-      // --- Schatten-Flags ---
-      block.castShadow = true;     // wirft Schatten
-      block.receiveShadow = true;  // empfängt Schatten
-
-      chunk.add(block);
+      // Dummy setzen
+      dummy.position.set(x, h, z);
+      dummy.updateMatrix();
+      instancedMesh.setMatrixAt(index++, dummy.matrix);
     }
   }
 
-  // Ganzer Chunk empfängt Schatten
-  chunk.receiveShadow = true;
+  instancedMesh.count = index;
+  instancedMesh.instanceMatrix.needsUpdate = true;
 
+  chunk.add(instancedMesh);
   scene.add(chunk);
   loadedChunks.set(chunkKey(cx, cz), chunk);
 }
+
 
 
 
@@ -409,54 +415,61 @@ function toggleRTX() {
 
 
       // Hilfsfunktion: Bodenhöhe ermitteln
-function getGroundHeight(scene, x, z) {
-  let maxY = 0;
-  scene.traverse(obj => {
-    if (obj.isMesh && obj.position.x === x && obj.position.z === z) {
-      if (obj.position.y > maxY) maxY = obj.position.y;
-    }
-  });
-  return maxY + 1; // +1 damit der Spieler über dem Block steht
+
+function getGroundHeight(x, z) {
+  return (heightMap.get(`${x},${z}`) ?? 0) + 1;
 }
+
 
 // Hauptloop
 function animate() {
   requestAnimationFrame(animate);
 
-  // Bewegung (Vorwärts/Rückwärts + Strafe), an Yaw orientiert
+  // --- Bewegung (Vorwärts/Rückwärts + Strafe), an Yaw orientiert ---
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
-  yawObject.position.addScaledVector(forward, -moveDY * 0.5);
-  yawObject.position.addScaledVector(right, moveDX * 0.5);
+  const right   = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
 
-  // Gravitation (schnelleres Fallen)
+  // Spieler bewegen
+  yawObject.position.addScaledVector(forward, -moveDY * 0.5);
+  yawObject.position.addScaledVector(right,   moveDX * 0.5);
+
+  // --- Gravitation ---
   const FALL_SPEED = 0.8; // hier kannst du den Wert anpassen
   yawObject.position.y -= FALL_SPEED;
+
+  // --- Bodenhöhe bestimmen ---
   const px = Math.floor(yawObject.position.x);
   const pz = Math.floor(yawObject.position.z);
-  const groundY = getGroundHeight(scene, px, pz);
+
+  // Heightmap nutzen statt scene.traverse
+  const groundY = getGroundHeight(px, pz);
+
+  // Spieler auf Boden setzen
   if (yawObject.position.y < groundY) {
     yawObject.position.y = groundY;
   }
 
-  // Look (immer aktiv, auch während des Fallens)
+  // --- Blicksteuerung ---
   yawObject.rotation.y -= lookDX * 0.05;
   pitchObject.rotation.x -= lookDY * 0.05;
+
   const maxPitch = Math.PI / 2;
-  if (pitchObject.rotation.x > maxPitch) pitchObject.rotation.x = maxPitch;
+  if (pitchObject.rotation.x >  maxPitch) pitchObject.rotation.x =  maxPitch;
   if (pitchObject.rotation.x < -maxPitch) pitchObject.rotation.x = -maxPitch;
 
-  // Chunks
+  // --- Sichtbare Chunks aktualisieren ---
   updateVisibleChunks(scene, yawObject);
 
-  // HUD
+  // --- HUD aktualisieren ---
   updateHUD();
 
+  // --- Rendern ---
   renderer.render(scene, camera);
 }
 
 // Start der Loop
 animate();
+
 }
 
 
