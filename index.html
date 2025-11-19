@@ -224,7 +224,7 @@ function updateVisibleChunks(scene, player) {
 
 // --- Licht & Schatten (scharf) ---
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap; // schärfer als SoftShadow
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // schärfer als SoftShadow
 
 // Shadow Maps nur alle 15 Sekunden aktualisieren
 renderer.shadowMap.autoUpdate = false;
