@@ -206,6 +206,19 @@ function updateVisibleChunks(scene, player) {
 })();
 
 
+const raycaster = new THREE.Raycaster();
+
+function getTargetBlock(scene, camera) {
+  const origin = camera.getWorldPosition(new THREE.Vector3());
+  const dir = camera.getWorldDirection(new THREE.Vector3());
+  raycaster.set(origin, dir);
+
+  raycaster.near = 0.1;
+  raycaster.far = 8; // Reichweite begrenzen
+
+  const hits = raycaster.intersectObjects(scene.children, true);
+  return hits.length > 0 ? hits[0] : null;
+}
 
 
 
@@ -273,41 +286,51 @@ function updateHUD() {
   infoEl.textContent = `Pos: (${yawObject.position.x.toFixed(1)}, ${yawObject.position.y.toFixed(1)}, ${yawObject.position.z.toFixed(1)})`;
 }
 
-// --- Buttons (ohne Raycast) ---
+// --- Buttons pls klapp rc 
+
+// --- Break Button ---
 document.getElementById('btnBreak').addEventListener('touchstart', () => {
-  const pos = yawObject.position.clone().floor();
-  pos.y = 0;
-  let toRemove = null;
-  scene.traverse(obj => {
-    if (toRemove) return;
-    if (obj.isMesh && obj.position.x === pos.x && obj.position.y === pos.y && obj.position.z === pos.z) {
-      toRemove = obj;
+  const hit = getTargetBlock(scene, camera);
+  if (hit) {
+    if (!(hit.object instanceof THREE.InstancedMesh)) {
+      hit.object.parent?.remove(hit.object);
+      console.log("Block entfernt:", hit.object);
+    } else {
+      console.log("Terrain getroffen – wird nicht entfernt");
     }
-  });
-  if (toRemove) {
-    toRemove.parent?.remove(toRemove);
+  } else {
+    console.log("Kein Block getroffen");
   }
 });
 
+
+// --- Place Button ---
 document.getElementById('btnPlace').addEventListener('touchstart', () => {
-  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
-  const pos = yawObject.position.clone().add(forward).round();
-  pos.y = 0;
-  const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), currentMaterial);
-  block.position.copy(pos);
-  block.castShadow = rtxEnabled;
-  block.receiveShadow = rtxEnabled;
-  scene.add(block);
+  const hit = getTargetBlock(scene, camera);
+  if (hit) {
+    // Trefferpunkt + Normalrichtung
+    const placePos = hit.point.clone().add(hit.face.normal);
+
+    // In Blockraster einrücken
+    placePos.x = Math.round(placePos.x);
+    placePos.y = Math.round(placePos.y);
+    placePos.z = Math.round(placePos.z);
+
+    const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matBrown);
+    block.position.copy(placePos);
+    block.castShadow = rtxEnabled;
+    block.receiveShadow = rtxEnabled;
+    scene.add(block);
+
+    console.log("Block gesetzt bei:", placePos);
+  } else {
+    console.log("Kein Ziel gefunden");
+  }
 });
 
-document.getElementById('btn1').addEventListener('touchstart', () => {
-  currentMaterial = matBrown;
-  document.getElementById('blockInfo').innerText = "Placing: BROWN";
-});
-document.getElementById('btn2').addEventListener('touchstart', () => {
-  currentMaterial = matGreen;
-  document.getElementById('blockInfo').innerText = "Placing: GREEN";
-});
+
+
+
 
 // --- RTX Toggle Button ---
 document.getElementById('btnRTX').addEventListener('touchstart', () => {
