@@ -309,14 +309,15 @@ document.getElementById('btnBreak').addEventListener('touchstart', () => {
 document.getElementById('btnPlace').addEventListener('touchstart', () => {
   const hit = getTargetBlock(scene, camera);
   if (hit) {
-    // Trefferpunkt + Normalrichtung
-    const placePos = hit.point.clone().add(hit.face.normal);
+    // Punkt leicht in Richtung der Normalen verschieben (halbe Einheit)
+    const placePos = hit.point.clone().addScaledVector(hit.face.normal, 0.5);
 
     // In Blockraster einrücken
     placePos.x = Math.round(placePos.x);
     placePos.y = Math.round(placePos.y);
     placePos.z = Math.round(placePos.z);
 
+    // Neuen Block erzeugen
     const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matBrown);
     block.position.copy(placePos);
     block.castShadow = rtxEnabled;
