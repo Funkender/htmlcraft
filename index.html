@@ -271,14 +271,15 @@ sunLight.shadow.camera.bottom = -100;
 scene.add(sunLight);
 
 
-
-      // Pitch/Yaw Rig
+// Pitch/Yaw Rig
       const yawObject = new THREE.Object3D();
       const pitchObject = new THREE.Object3D();
       yawObject.add(pitchObject);
       pitchObject.add(camera);
       scene.add(yawObject);
       yawObject.position.set(0, 5, 0);
+
+     
 
       // --- HUD Info ---
 const infoEl = document.getElementById('info');
@@ -421,20 +422,8 @@ function toggleRTX() {
 
 
 
-// --- Kamera-Offset ---
-(function setupCameraOffset() {
-  const OFFSET_Y = 2; // Höhe über Spieler
 
-  function updateCameraOffset() {
-    camera.position.y = OFFSET_Y;
-  }
 
-  const oldAnimate = animate;
-  animate = function() {
-    oldAnimate();
-    updateCameraOffset();
-  };
-})();
 
 
 
@@ -462,7 +451,7 @@ function animate() {
   yawObject.position.addScaledVector(right,   moveDX * 0.5);
 
   // --- Gravitation ---
-  const FALL_SPEED = 0.8; // hier kannst du den Wert anpassen
+  const FALL_SPEED = 0.2; // hier kannst du den Wert anpassen
   yawObject.position.y -= FALL_SPEED;
 
   // --- Bodenhöhe bestimmen ---
@@ -472,10 +461,11 @@ function animate() {
   // Heightmap nutzen statt scene.traverse
   const groundY = getGroundHeight(px, pz);
 
-  // Spieler auf Boden setzen
-  if (yawObject.position.y < groundY) {
-    yawObject.position.y = groundY;
-  }
+  // Spieler 2 Blöcke über Boden setzen
+if (yawObject.position.y < groundY + 2) {
+  yawObject.position.y = groundY + 2;
+}
+
 
   // --- Blicksteuerung ---
   yawObject.rotation.y -= lookDX * 0.05;
