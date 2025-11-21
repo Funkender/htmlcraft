@@ -16,8 +16,8 @@
   <!-- Buttons -->
   <div id="btnBreak" class="btn">Break</div>
   <div id="btnPlace" class="btn">Place</div>
-  <div id="btn1" class="btn">1 (red)</div>
-  <div id="btn2" class="btn">2 (bronze)</div>
+  <div id="btn1" class="btn">1 (red glow)</div>
+  <div id="btn2" class="btn">2 (Bronze )</div>
   <button id="btnRTX" style="position:absolute; bottom:10px; right:10px;">
   RTX Toggle
 </button>
@@ -252,7 +252,7 @@ setInterval(() => {
 
 
 // Umgebungslicht für Grundhelligkeit
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // etwas dunkler, damit Schatten kontrastreich wirken
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // etwas dunkler, damit Schatten kontrastreich wirken
 scene.add(ambientLight);
 
 // Sonnenlicht (DirectionalLight mit Schatten)
@@ -323,7 +323,7 @@ function createBlock(position) {
     block.castShadow = true;
     block.receiveShadow = true;
 
-    // kleine rote PointLights
+    // kleine rote PointLights an den Ecken
     function addLight(x, y, z, castShadow = false) {
       const light = new THREE.PointLight(0xff0000, 20, 25);
       light.position.set(x, y, z);
@@ -344,12 +344,32 @@ function createBlock(position) {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xcd7f32,
       metalness: 1.0,
-      roughness: 0.3
+      roughness: 0.4,
+      emissive: 0x2a1a0a,
+      emissiveIntensity: 0.2
     });
     block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
     block.position.copy(position);
     block.castShadow = true;
     block.receiveShadow = true;
+
+    // Bronze-Block: PointLights an jedem Face, 5 Blöcke entfernt
+    const dirs = [
+      new THREE.Vector3( 1, 0, 0), // +X
+      new THREE.Vector3(-1, 0, 0), // -X
+      new THREE.Vector3( 0, 1, 0), // +Y
+      new THREE.Vector3( 0,-1, 0), // -Y
+      new THREE.Vector3( 0, 0, 1), // +Z
+      new THREE.Vector3( 0, 0,-1)  // -Z
+    ];
+
+    for (const d of dirs) {
+      const light = new THREE.PointLight(0xcd7f32, 1.4, 14);
+      light.castShadow = true;
+      // Lokaler Offset relativ zum Block: halbe Größe (0.5) + 5 Einheiten Abstand
+      light.position.copy(d.clone().multiplyScalar(0.5 + 1));
+      block.add(light);
+    }
   }
   return block;
 }
@@ -375,6 +395,8 @@ document.getElementById("btnBreak").addEventListener("click", () => {
     scene.remove(hit.object);
   }
 });
+
+
 
 
 
